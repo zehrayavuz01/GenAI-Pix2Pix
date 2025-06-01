@@ -1,20 +1,24 @@
+
+
+
+
 import torch
 import config
 from torchvision.utils import save_image
 import os
 
 def save_some_examples(gen, val_loader, epoch, folder):
-    os.makedirs(folder, exist_ok=True)
-    x, y = next(iter(val_loader))
-    x, y = x.to(config.DEVICE), y.to(config.DEVICE)
     gen.eval()
-    with torch.no_grad():
-        y_fake = gen(x)
-        y_fake = y_fake * 0.5 + 0.5  # remove normalization#
-        save_image(y_fake, folder + f"/y_gen_{epoch}.png")
-        save_image(x * 0.5 + 0.5, folder + f"/input_{epoch}.png")
-        if epoch == 1:
-            save_image(y * 0.5 + 0.5, folder + f"/label_{epoch}.png")
+    for i, (x, y) in enumerate(val_loader):
+        x = x.to(config.DEVICE)
+        y = y.to(config.DEVICE)
+        with torch.no_grad():
+            y_fake = gen(x)
+
+        for j in range(x.size(0)):
+            save_image(x[j] * 0.5 + 0.5, f"{folder}/input_{epoch}_{i*len(x)+j}.png")
+            save_image(y[j] * 0.5 + 0.5, f"{folder}/label_{epoch}_{i*len(x)+j}.png")
+            save_image(y_fake[j] * 0.5 + 0.5, f"{folder}/y_gen_{epoch}_{i*len(x)+j}.png")
     gen.train()
 
 
