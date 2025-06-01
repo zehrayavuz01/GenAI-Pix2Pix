@@ -1,64 +1,48 @@
+
 import os
-from PIL import Image
-from torch.utils.data import Dataset, DataLoader
-from torchvision import transforms
 import numpy as np
+from PIL import Image
+from torch.utils.data import Dataset
+import albumentations as A
+from albumentations.pytorch import ToTensorV2
 
-class PairedImageDataset(Dataset):
-    def __init__(self, before_dir, after_dir,   both_transform=None,
-        transform_input=None,
-        transform_target=None,
-        filenames=None,):
-        self.before_dir = before_dir
-        self.after_dir = after_dir
-        self.both_transform = both_transform
-        self.transform_input = transform_input
-        self.transform_target = transform_target
 
-        # Sort file names to match pairs correctly
-        self.filenames = filenames if filenames is not None else os.listdir(before_dir)
+transform = A.Compose([
+    A.Resize(256, 256),  # optional if already resized
+    A.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5)),
+    ToTensorV2()
+], additional_targets={"image0": "image"})
+
+# Dataset class (clean version, no saving or augmenting)
+class PairedFaceDataset(Dataset):
+    def __init__(self, before_dirs, after_dirs, filenames, transform=None):
+        self.before_dirs = before_dirs  # [before_resized_path, augmented_before_path]
+        self.after_dirs = after_dirs    # [after_resized_path, augmented_after_path]
+        self.filenames = filenames
+        self.transform = transform
 
     def __len__(self):
         return len(self.filenames)
 
     def __getitem__(self, idx):
-        before_filename = self.filenames[idx]  # e.g. "77_b.jpg"
-        after_filename = before_filename.replace('_b', '_a')  # Adjust to match "77.jpg" or similar
+        filename = self.filenames[idx]
 
-        before_path = os.path.join(self.before_dir, before_filename)
-        after_path = os.path.join(self.after_dir, after_filename)
+    # Detect if it's an augmented image (starts with 10000 or more)
+        is_aug = int(filename.split("_")[0]) >= 10000
 
-        # Open as numpy arrays for Albumentations
-        before_img = np.array(Image.open(before_path).convert("RGB"))
-        after_img = np.array(Image.open(after_path).convert("RGB"))
+    # Select folder based on image type
+        before_dir = self.before_dirs[1] if is_aug else self.before_dirs[0]
+        after_dir = self.after_dirs[1] if is_aug else self.after_dirs[0]
 
-        # Apply joint transform (resize)
-        if self.both_transform:
-            augmented = self.both_transform(image=before_img, image0=after_img)
-            before_img = augmented["image"]
-            after_img = augmented["image0"]
+        before_path = os.path.join(before_dir, filename)
+        after_path = os.path.join(after_dir, filename.replace("_b", "_a"))
 
-        # Apply individual transforms
-        if self.transform_input:
-            before_img = self.transform_input(image=before_img)["image"]
+        before = np.array(Image.open(before_path).convert("RGB"))
+        after = np.array(Image.open(after_path).convert("RGB"))
 
-        if self.transform_target:
-            after_img = self.transform_target(image=after_img)["image"]
+        if self.transform:
+            augmented = self.transform(image=before, image0=after)
+            before = augmented["image"]
+            after = augmented["image0"]
 
-        return before_img, after_img
-
-transform = transforms.Compose([
-    transforms.Resize((256, 256)),
-    transforms.ToTensor(),
-])
-
-"""dataset = PairedImageDataset("/Users/zehra/PycharmProjects/MedicalGAN/before_resized", "/Users/zehra/PycharmProjects/MedicalGAN/after_resized", transform=transform)
-dataloader = DataLoader(dataset, batch_size=16, shuffle=True)
-
-for before_img, after_img in dataloader:
-    print(before_img.shape, after_img.shape)"""
-
-
-
-
-
+        return before, after
