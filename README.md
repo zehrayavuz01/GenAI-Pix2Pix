@@ -24,7 +24,7 @@ This study aims to build a post operative simulation model using Pix2Pix GAN fra
 - discriminator.py : Patch-GAN discrimintor as originally taken from Pix2Pix framework
 - utils.py : Provides essential tools to save some images generated during training, save model to disk and resume training from a saved model
 - config.py : Tunes and sets the essential parameter for training. Uses GPU if available. Sets hyperparameter such as learning rate, batch size and number of epochs. These parameters were set according to standard practice for GAN training and can be adjusted as needed. In addition to hyperparameters, the loss functions weights were set in this file.
-- training.py : All training process were implemented in this section. 
+- training.py : All training processes were implemented in this section. 
   *Additional loss functions: compute_identity_los and VGGPPerceptualLoss
   *train_fn: operates forward backward passes
   *PairedFaceDataset: Loads images from drive files
